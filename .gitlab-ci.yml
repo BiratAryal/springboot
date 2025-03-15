@@ -1,0 +1,82 @@
+stages:
+  - build
+  - package
+  - helmpackaging
+  - helmdeploy
+
+variables:
+  IMAGE_NAME: "$CI_REGISTRY_IMAGE/springboot-service"
+  IMAGE_TAG: "$CI_PIPELINE_IID"
+  CHART: springapp
+  HELMURL: "${CI_PROJECT_NAME} ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/helm/stable"
+
+# variablescheck:
+#   image: docker:latest
+#   services:
+#     - docker:dind
+#   script: 
+#     - echo $CI_REGISTRY_IMAGE
+#     - echo $CI_PIPELINE_IID
+#     - echo $IMAGE_NAME
+#     - echo $CI_API_V4_URL
+#     - echo $CI_PROJECT_ID
+#     - echo "HELM URL= $HELMURL"
+
+docker-build:
+  image: docker:latest
+  stage: build
+  services:
+    - docker:dind
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+  script:
+    - docker build --pull --no-cache -t $IMAGE_NAME:$IMAGE_TAG .
+    - docker push $IMAGE_NAME:$IMAGE_TAG
+
+docker-package:
+  image: docker:latest
+  stage: package
+  services:
+    - docker:dind
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+  script:
+    - docker pull $IMAGE_NAME:$IMAGE_TAG
+    - IMAGE_DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' $IMAGE_NAME:$IMAGE_TAG | awk -F'@' '{print $2}')
+    - echo "Image Digest-> $IMAGE_DIGEST"
+
+helm-build:
+  # image: alpine/helm:latest
+  image: 
+    name: alpine/helm:latest
+    entrypoint: [""]
+  stage: helmpackaging
+  # services:
+  #   - docker:dind
+  before_script:
+    - echo $CI_REGISTRY_USER $CI_REGISTRY_PASSWORD ${CI_PROJECT_NAME} ${HELMURL}
+    - helm plugin install https://github.com/chartmuseum/helm-push
+    - helm repo add --username $CI_REGISTRY_USER --password $CI_REGISTRY_PASSWORD ${HELMURL}
+  script:
+    - helm version
+    - echo "Shell Used=$SHELL"
+    - echo "Image URL=${IMAGE_NAME} Image TAG=${IMAGE_TAG} "
+    - sed -rie "s|1.0.0|1.0.${IMAGE_TAG}|g" helmcharts/Chart.yaml
+    - sed -rie "s|\"REPO_IMAGE_URL\"|\"${IMAGE_NAME}\"|g" helmcharts/values.yaml
+    - sed -rie "s|\"REPO_IMAGE_TAG\"|\"${IMAGE_TAG}\"|g" helmcharts/values.yaml
+    - helm package helmcharts/
+    - cat helmcharts/values.yaml helmcharts/Chart.yaml
+    - ls -lah
+    - helm cm-push ${CHART}*.tgz ${CI_PROJECT_NAME} 
+
+helm-deploy:
+  image: 
+    name: alpine/helm:latest
+    entrypoint: [""]
+  stage: helmdeploy
+  before_script:
+    - helm repo add --username $CI_REGISTRY_USER --password $CI_REGISTRY_PASSWORD ${HELMURL}
+  script:
+    - helm repo list
+    
+

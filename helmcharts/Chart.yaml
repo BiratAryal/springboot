@@ -1,0 +1,7 @@
+apiVersion: v2
+description: A Helm chart for deploying an API server with a custom configuration
+maintainers:
+- email: birataryal2@gmail.com
+  name: Birat Aryal
+name: springapp
+version: 1.0.0

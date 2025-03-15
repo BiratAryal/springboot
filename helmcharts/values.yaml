@@ -1,0 +1,34 @@
+# Define configurable values for the deployment
+namespace: applications
+images:
+  repository: "REPO_IMAGE_URL"
+  tag: "REPO_IMAGE_TAG"
+  pullPolicy: Always # Can be overridden to "IfNotPresent"
+deploymenttype:
+  deplploymentName: apiserverdeployment
+  labels: apiserver
+  replicas: 1
+  strategy: # This section called to indent
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+  containerPort: 8080  # Adjust as needed
+  resources: # This section called to indent
+    limits:
+      cpu: 0.5
+      memory: "500Mi"
+    requests:
+      cpu: 50m
+      memory: 50M
+# Service configuration values
+service:
+  name: apiserversvcs
+  serviceType: # This section called to indent
+    type: ClusterIP
+  # HPA configuration values
+hpa:
+  name: apiserverhpa
+  minReplicas: 1
+  maxReplicas: 3 # Adjust as needed
+  targetUtilization: 50 # Adjust the target CPU utilization percentage

@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.deploymenttype.deplploymentName }}
+  namespace: {{ .Values.namespace }}
+spec:
+  replicas: {{ .Values.replicas }}
+  strategy:
+  {{-toYaml .Values.deploymenttype.strategy|nindent 4}}
+  selector:
+    matchLabels:
+      app: {{ .Values.deploymenttype.labels }} # Key map to labels
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.deploymenttype.labels }}  # Key map to labels
+    spec:
+      imagePullSecrets:
+        - name: my-registry-secret
+      containers:
+        - name: {{ .Values.deploymenttype.labels }}
+          image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+          imagePullPolicy: {{ .Values.images.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.deploymenttype.containerPort }}
+          resources:
+          {{-toYaml .Values.deploymenttype.resources|nindent 12}}
